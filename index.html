@@ -226,6 +226,10 @@ var svg = d3.select("body")
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+function get_y(ranking) {
+    return Math.floor((ranking-1)/20);
+}
+
 var in_format = d3.time.format("%d.%m.%Y");
 var out_format = d3.time.format("%Y%m%d");
 
@@ -257,10 +261,8 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
         .range([0,width - margin.left - margin.right]);
 
     var y = d3.scale.linear()
-        .domain([0,500])
+        .domain([0,25])
         .range([0, height - margin.top - margin.bottom]);
-
-    var c = d3.scale.category20();
 
     svg.selectAll("image")
         .data(data.get(data.keys()[0]), function(d) { return d.name; })
@@ -269,13 +271,13 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
         .attr({
             "xlink:href": function(d) { return d.country in flags ? flags[d.country] : flags["PIR"]; },
             "x": function(d) { return x((d.ranking - 1)% 20); },
-            "y": function(d) {return y(d.ranking); },
+            "y": function(d) {return y(get_y(d.ranking)); },
             "width": 20,
             "height": 14,
-            "preserveAspectRatio": "none"
+            "preserveAspectRatio": "none",
+            "opacity": 1
         }).on("click", function() {
-            var country = this.__data__.country;
-            highlight_country(country);
+            highlight_country(this);
         })
         .append("title").text(function(d) {return d.name + " (" + d.ranking + ")";});
 
@@ -285,34 +287,36 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
             .data(data.get(this.value), function(d) { return d.name; });
         images.select("title").text(function(d) {return d.name + " (" + d.ranking + "), " + d.country;});
         images.transition()
+            .transition()
+            .attr("opacity", 1)
             .duration(1500)
             .attr({
                 "x": function(d) { return x((d.ranking - 1)% 20); },
-                "y": function(d) {return y(d.ranking); }
+                "y": function(d) {return y(get_y(d.ranking)); }
             });
         images.enter().append("image")
             .attr({
                 "xlink:href": function(d) { if (!(d.country in flags)) console.log(d); return d.country in flags ? flags[d.country] : flags["PIR"]; },
                 "x": function(d) { return x((d.ranking - 1)% 20); },
-                "y": function(d) {return y(d.ranking); },
+                "y": function(d) {return y(get_y(d.ranking)); },
                 "width": 20,
                 "height": 14,
-                "preserveAspectRatio": "none"
+                "preserveAspectRatio": "none",
+                "opacity": 1
             })
             .on("click", function() {
-                var country = this.__data__.country;
-                highlight_country(country);
+                highlight_country(this);
             })
             .append("title").text(function(d) {return d.name + " (" + d.ranking + "), " + d.country;});
         images.exit().remove();
     });
 
-    function highlight_country(country) {
+    function highlight_country(element) {
         svg.selectAll("image")
             .transition()
             .duration(1500)
             .attr({
-                "opacity": function(d) { return (d.country == country) ? 1 : 0.1; }
+                "opacity": function(d) { return (d.country == element.__data__.country) ? 1 : 0.1; }
             })
             .transition()
             .duration(3000)
