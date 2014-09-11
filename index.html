@@ -231,7 +231,8 @@ function get_y(ranking) {
 }
 
 var in_format = d3.time.format("%d.%m.%Y");
-var out_format = d3.time.format("%Y%m%d");
+var key_format = d3.time.format("%Y%m%d");
+var hr_format = d3.time.format("%d/%m/%Y");
 
 var data;
 
@@ -244,17 +245,24 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
     });
 
     data = d3.nest()
-    .key(function(d) {return out_format(d.date);})
+    .key(function(d) {return key_format(d.date);})
     .sortKeys(d3.descending)
     .sortValues(function(a,b) { return a.ranking - b.ranking; })
     .map(csv, d3.map);
 
+    entries = d3.nest()
+    .key(function(d) {return key_format(d.date);})
+    .rollup(function(leaves) { return leaves.length; })
+    .entries(csv);
+
     d3.select("body").append("select").selectAll("option")
-                   .data(data.keys())
+                   .data(entries)
                  .enter()
                    .append("option")
-                   .attr("value", function(d) {return d;})
-                   .text(function(d) {return d;});
+                   .attr("value", function(d) {return d.key;})
+                   .text(function(d) {return hr_format(key_format.parse(d.key));})
+                   .filter(function(d) { return d.values < 500 })
+                   .remove();
 
     var x = d3.scale.linear()
         .domain([0,20])
@@ -294,7 +302,8 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
                 "x": function(d) { return x((d.ranking - 1)% 20); },
                 "y": function(d) {return y(get_y(d.ranking)); }
             });
-        images.enter().append("image")
+        var new_images = images.enter()
+            .append("image")
             .attr({
                 "xlink:href": function(d) { if (!(d.country in flags)) console.log(d); return d.country in flags ? flags[d.country] : flags["PIR"]; },
                 "x": function(d) { return x((d.ranking - 1)% 20); },
@@ -302,12 +311,13 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
                 "width": 20,
                 "height": 14,
                 "preserveAspectRatio": "none",
-                "opacity": 1
-            })
-            .on("click", function() {
+                "opacity": 0
+            });
+        new_images.on("click", function() {
                 highlight_country(this);
             })
             .append("title").text(function(d) {return d.name + " (" + d.ranking + "), " + d.country;});
+        new_images.transition().duration(1500).attr('opacity', 1);
         images.exit().remove();
     });
 
