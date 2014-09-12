@@ -213,9 +213,9 @@ var flags = {
     'ZIM': '//upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Flag_of_Zimbabwe.svg/200px-Flag_of_Zimbabwe.svg.png'
 };
 
-var margin = {top: 40, right: 40, bottom: 40, left: 40},
+var margin = {top: 10, right: 40, bottom: 10, left: 40},
     width = 1060,
-    height = 500;
+    height = 600;
 
 var svg = d3.select("body")
     .append("svg")
@@ -226,8 +226,24 @@ var svg = d3.select("body")
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+function get_x(ranking) {
+    var y = get_y(ranking);
+    return (ranking - y*(y-1)/2) - 1 + 20 - 0.5*y;
+}
+
 function get_y(ranking) {
-    return Math.floor((ranking-1)/20);
+    var k = Math.floor(Math.sqrt(2*ranking));
+    while ((k*(k-1)/2) < ranking) {
+        k++;
+    };
+    while ((k*(k-1)/2) >= ranking) {
+        k--;
+    };
+    return k;
+}
+
+function get_title(d) {
+    return d.name + " (" + d.ranking + "), " + d.country;
 }
 
 var in_format = d3.time.format("%d.%m.%Y");
@@ -265,11 +281,11 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
                    .remove();
 
     var x = d3.scale.linear()
-        .domain([0,20])
+        .domain([0,40])
         .range([0,width - margin.left - margin.right]);
 
     var y = d3.scale.linear()
-        .domain([0,25])
+        .domain([0,30])
         .range([0, height - margin.top - margin.bottom]);
 
     svg.selectAll("image")
@@ -278,8 +294,8 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
         .append("image")
         .attr({
             "xlink:href": function(d) { return d.country in flags ? flags[d.country] : flags["PIR"]; },
-            "x": function(d) { return x((d.ranking - 1)% 20); },
-            "y": function(d) {return y(get_y(d.ranking)); },
+            "x": function(d) { return x(get_x(d.ranking)); },
+            "y": function(d) { return y(get_y(d.ranking)); },
             "width": 20,
             "height": 14,
             "preserveAspectRatio": "none",
@@ -287,27 +303,27 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
         }).on("click", function() {
             highlight_country(this);
         })
-        .append("title").text(function(d) {return d.name + " (" + d.ranking + ")";});
+        .append("title").text(function(d) { return get_title(d); });
 
 
     d3.select("select").on("change", function() {
         var images = svg.selectAll("image")
             .data(data.get(this.value), function(d) { return d.name; });
-        images.select("title").text(function(d) {return d.name + " (" + d.ranking + "), " + d.country;});
+        images.select("title").text(function(d) { return get_title(d); });
         images.transition()
             .transition()
             .attr("opacity", 1)
             .duration(1500)
             .attr({
-                "x": function(d) { return x((d.ranking - 1)% 20); },
-                "y": function(d) {return y(get_y(d.ranking)); }
+                "x": function(d) { return x(get_x(d.ranking)); },
+                "y": function(d) { return y(get_y(d.ranking)); }
             });
         var new_images = images.enter()
             .append("image")
             .attr({
-                "xlink:href": function(d) { if (!(d.country in flags)) console.log(d); return d.country in flags ? flags[d.country] : flags["PIR"]; },
-                "x": function(d) { return x((d.ranking - 1)% 20); },
-                "y": function(d) {return y(get_y(d.ranking)); },
+                "xlink:href": function(d) { return d.country in flags ? flags[d.country] : flags["PIR"]; },
+                "x": function(d) { return x(get_x(d.ranking)); },
+                "y": function(d) { return y(get_y(d.ranking)); },
                 "width": 20,
                 "height": 14,
                 "preserveAspectRatio": "none",
@@ -316,7 +332,7 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
         new_images.on("click", function() {
                 highlight_country(this);
             })
-            .append("title").text(function(d) {return d.name + " (" + d.ranking + "), " + d.country;});
+            .append("title").text(function(d) { return get_title(d);});
         new_images.transition().duration(1500).attr('opacity', 1);
         images.exit().remove();
     });
