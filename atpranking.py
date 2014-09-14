@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import csv
-import threading
+from threading import Thread, Lock
+from queue import Queue
 import requests
 from bs4 import BeautifulSoup
+
+csv_file = open("atp_men_singles_ranking.csv", "w", newline='')
+csv_writer = csv.DictWriter(csv_file, fieldnames=['date', 'rank', 'player', 'country', 'url', 'points', 'tournaments_played'])
 
 
 def get_dates():
@@ -21,44 +25,55 @@ def parse_rankings(html_page):
     for atp_ranking_tr in atp_ranking_tr_all:
         split_text = atp_ranking_tr.find("td").text.strip().split()
         rank, player, country = split_text[0], " ".join(split_text[1:-1]), split_text[-1][1:-1]
+        url = atp_ranking_tr.find("a").get('href')
+        points = atp_ranking_tr.find_all("td")[1].text
+        tournaments_played = atp_ranking_tr.find_all("td")[3].text
         yield {
             'rank': rank,
             'player': player,
             'country': country,
+            'url': url,
+            'points': points,
+            'tournaments_played': tournaments_played
         }
 
 
 def get_rankings(params):
-    response = requests.get("http://www.atpworldtour.com/Rankings/Singles.aspx", params=params)
-    print(response.url, response.status_code)
-    for ranking in parse_rankings(response.text):
-        ranking['date'] = params['d']
-        with threading.Lock():
-            csv_writer.writerow(ranking)
+    try:
+        response = requests.get("http://www.atpworldtour.com/Rankings/Singles.aspx", params=params)
+        if response.status_code != 200:
+            print(response.status_code, params)
+            return False
+        print("ok")
+        for ranking in parse_rankings(response.text):
+            ranking['date'] = params['d']
+            with Lock():
+                csv_writer.writerow(ranking)
+        return True
+    except Exception as e:
+        print(e)
+        return False
 
-retry_urls = [
-    {"r": "401", "d": "05.08.2013"},
-    {"r": "1", "d": "26.05.2014"},
-    {"r": "301", "d": "09.04.2001"},
-    {"r": "301", "d": "21.02.2000"},
-    {"r": "401", "d": "12.08.2013"},
-    {"r": "401", "d": "16.06.2014"},
-    {"r": "1", "d": "04.04.2005"},
-    {"r": "1", "d": "13.04.1998"},
-    {"r": "1", "d": "21.10.1996"},
-    {"r": "301", "d": "02.11.1987"},
-    {"r": "101", "d": "21.09.2009"},
-    {"r": "1", "d": "18.06.2001"},
-    {"r": "401", "d": "06.06.2005"},
-    {"r": "101", "d": "12.05.2014"},
-    {"r": "201", "d": "22.07.2013"},
-    {"r": "301", "d": "21.09.2009"},
-    {"r": "101", "d": "05.03.1975"},
-]
 
-csv_file = open("atp_men_singles_ranking_retry2.csv", "w", newline='')
-csv_writer = csv.DictWriter(csv_file, fieldnames=['date', 'rank', 'player', 'country'])
+def worker():
+    while True:
+        params = q.get()
+        if not get_rankings(params):
+            q.put(params)
+        q.task_done()
+        print(q.qsize())
+
+q = Queue()
+for i in range(6):
+    t = Thread(target=worker)
+    t.daemon = True
+    t.start()
+
 
 atp_singles_dates = get_dates()
-for param in retry_urls:
-        threading.Thread(target=lambda: get_rankings(param)).start()
+
+for r in ("1", "101", "201", "301", "401"):
+    for d in atp_singles_dates:
+        q.put({"r": r, "d": d})
+
+q.join()

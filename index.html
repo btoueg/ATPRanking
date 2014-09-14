@@ -1,10 +1,9 @@
 <html>
 <head>
-    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/d3/3.4.11/d3.min.js"></script>
+    <script type="text/javascript" src="./d3.min.js"></script>
 </head>
 <body style="background-color: aliceblue;">
     <script type="text/javascript">
-// http://en.wikipedia.org/wiki/List_of_IOC_country_codes
 var flags = {
     'PIR': "//upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Jolly-roger.svg/200px-Jolly-roger.svg.png",
     'AFG': '//upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Flag_of_Afghanistan.svg/200px-Flag_of_Afghanistan.svg.png',
@@ -212,10 +211,10 @@ var flags = {
     'ZAM': '//upload.wikimedia.org/wikipedia/commons/thumb/0/06/Flag_of_Zambia.svg/200px-Flag_of_Zambia.svg.png',
     'ZIM': '//upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Flag_of_Zimbabwe.svg/200px-Flag_of_Zimbabwe.svg.png'
 };
-
 var margin = {top: 10, right: 40, bottom: 10, left: 40},
     width = 1060,
     height = 600;
+
 
 var svg = d3.select("body")
     .append("svg")
@@ -227,8 +226,8 @@ var svg = d3.select("body")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 function get_x(ranking) {
-    var y = get_y(ranking);
-    return (ranking - y*(y-1)/2) - 1 + 20 - 0.5*y;
+    var y = get_y(ranking) + 1;
+    return (ranking - y*(y-1)/2) - 1 + 10 - 0.5*y;
 }
 
 function get_y(ranking) {
@@ -239,12 +238,17 @@ function get_y(ranking) {
     while ((k*(k-1)/2) >= ranking) {
         k--;
     };
-    return k;
+    return k-1;
 }
 
 function get_title(d) {
     return d.name + " (" + d.ranking + "), " + d.country;
 }
+
+// http://en.wikipedia.org/wiki/List_of_IOC_country_codes
+
+// http://www.rolandgarros.com/images/misc/masthead_logo.jpg
+// http://www.wimbledon.com/images/misc/header_wimlogo.png
 
 var in_format = d3.time.format("%d.%m.%Y");
 var key_format = d3.time.format("%Y%m%d");
@@ -252,12 +256,23 @@ var hr_format = d3.time.format("%d/%m/%Y");
 
 var data;
 
-d3.csv("atp_men_singles_ranking.csv",function(csv) {
+var x = d3.scale.linear()
+    .domain([0,20])
+    .range([0,width - margin.left - margin.right]);
+
+var y = d3.scale.linear()
+    .domain([0,10])
+    .range([0, height - margin.top - margin.bottom]);
+
+d3.csv("atp_men_singles_ranking_v2.csv",function(csv) {
     console.log("script started...");
 
     csv.forEach(function(line) {
         line.ranking = parseInt(line.ranking);
         line.date = in_format.parse(line.date);
+        line.url = "http://www.atpworldtour.com" + line.url;
+        //line.points = parseInt(line.points.replace(",", ""));
+        line.tournaments = parseInt(line.tournaments);
     });
 
     data = d3.nest()
@@ -280,14 +295,6 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
                    .filter(function(d) { return d.values < 500 })
                    .remove();
 
-    var x = d3.scale.linear()
-        .domain([0,40])
-        .range([0,width - margin.left - margin.right]);
-
-    var y = d3.scale.linear()
-        .domain([0,30])
-        .range([0, height - margin.top - margin.bottom]);
-
     svg.selectAll("image")
         .data(data.get(data.keys()[0]), function(d) { return d.name; })
        .enter()
@@ -296,12 +303,16 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
             "xlink:href": function(d) { return d.country in flags ? flags[d.country] : flags["PIR"]; },
             "x": function(d) { return x(get_x(d.ranking)); },
             "y": function(d) { return y(get_y(d.ranking)); },
-            "width": 20,
-            "height": 14,
+            "width": 40,
+            "height": 28,
             "preserveAspectRatio": "none",
             "opacity": 1
-        }).on("click", function() {
+        })
+        .on("click", function() {
             highlight_country(this);
+        })
+        .on("dblclick", function() {
+                window.open(this.__data__.url);
         })
         .append("title").text(function(d) { return get_title(d); });
 
@@ -324,13 +335,17 @@ d3.csv("atp_men_singles_ranking.csv",function(csv) {
                 "xlink:href": function(d) { return d.country in flags ? flags[d.country] : flags["PIR"]; },
                 "x": function(d) { return x(get_x(d.ranking)); },
                 "y": function(d) { return y(get_y(d.ranking)); },
-                "width": 20,
-                "height": 14,
+                "width": 40,
+                "height": 28,
                 "preserveAspectRatio": "none",
                 "opacity": 0
             });
-        new_images.on("click", function() {
+        new_images
+            .on("click", function() {
                 highlight_country(this);
+            })
+            .on("dblclick", function() {
+                    window.open(this.__data__.url);
             })
             .append("title").text(function(d) { return get_title(d);});
         new_images.transition().duration(1500).attr('opacity', 1);
