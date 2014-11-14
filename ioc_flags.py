@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 
+import csv
 import requests
 from bs4 import BeautifulSoup
-import pprint
 
-results = dict()
+
+csv_file = open("ioc_flags.csv", "w", newline='')
+csv_writer = csv.DictWriter(csv_file, fieldnames=['code', 'url'])
 
 
 def get_country_flags():
@@ -19,10 +21,8 @@ def get_country_flags():
                 img = td[2].find("img")
                 if img:
                     url = img.get("src").replace("22px", "200px")
-                results[country_code] = url
+                    csv_writer.writerow({'code': country_code, 'url': url})
                 if country_code == "ZIM":
                     return
 
 get_country_flags()
-
-pprint.pprint(results)

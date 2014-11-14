@@ -264,7 +264,7 @@ var y = d3.scale.linear()
     .domain([0,10])
     .range([0, height - margin.top - margin.bottom]);
 
-d3.csv("atp_men_singles_ranking_v2.csv",function(csv) {
+d3.csv("atp_men_singles_ranking.csv",function(csv) {
     console.log("script started...");
 
     csv.forEach(function(line) {
